@@ -1,0 +1,147 @@
+###########################################################################################################################################################################################
+## main pipeline
+###########################################################################################################################################################################################
+1. Given the list of species name, find all the assembly file of such species using the assembly_summary and download the assembly file from ncbi
+./get_fasta.py
+
+1. combine contigs given threshold 5000
+cmd: ./combine_contigs.py -t 5000
+
+2.  using prokka to annotate 
+1. From the folder family_genome_folder, for each file:
+	a. get the file_name
+	b. create a dir with same name in prokka dir
+	c. run the following prokka command line:  prokka --outdir mydir --prefix mygenome file_name
+cmd: ./prokka.py 
+
+
+3. Build a db of the cds for each species to blast it 
+cmd: ./format_db.py
+
+4. blast file in ./db/ vs gene_block_query.fa (change line 103 ->    out_file = "%s%s.txt" % (blast_result_folder, db.split('/')[-1].split('.ffc')[0]) )
+cmd: ./blast_script_1.py
+
+5. blast parse from (change line 132 ->             predicted_gene = hlog.query_locus()      )
+cmd: ./blast_parse.py
+
+6. filter to get the best operon
+cmd: ./filter_operon_blast_results.py
+
+6*. create gene blast for CYP114, CYP115, FD, SDR, and GGPS2 and( create a ancestral_reconstruction directory)
+cmd: 
+./blast_1_gene.py -o CYP114
+./blast_1_gene.py -o CYP115
+./blast_1_gene.py -o FD
+./blast_1_gene.py -o SDR
+./blast_1_gene.py -o GGPS2
+
+7. create the result_dic file for the operon
+cmd: ./get_result_dic.py 
+
+8. convert, this take in the gibberellin file and check for the pseudo gene and set it to p (naively using only the percentage), also provide list of genomes id that has orthoblock as a text file name has_blocks.txt
+cmd:./convert.py -i result_dic/ -o new_result/ -l XOC_0085
+
+9. create a newick tree using rpoB gene (output in new_tree):
+cmd:./create_newick_tree.py
+
+9*. create an operon tree  by concatenating the genes(output in operon_tree):
+cmd: ./create_operon_tree.py 
+
+9**. create an operon tree using edit distance:
+cmd:./create_operon_tree_distance.py 
+
+10. reconstruction the file using the operon tree
+cmd:./reconstruction.py -i new_result/ -o reconstruction_global_operon -t ../operon_tree/tree/out_tree.nwk -m global
+
+10*. reconstruction the file using the rpoB tree
+cmd:./reconstruction.py -i new_result/ -o reconstruction_global_rpoB -t ../new_tree/out_tree.nwk -m global
+
+11.show tree
+operon tree
+cmd:./show_tree.py -g group.txt -i reconstruction_global_operon/gibberellin -a accession_to_common.txt -l a -o Ryan_operon
+
+rpoB tree
+cmd:./show_tree.py -g group.txt -i reconstruction_global_rpoB/gibberellin -a accession_to_common.txt -l a -o Ryan_rpoB
+###########################################################################################################################################################################################
+# create gene tree command
+###########################################################################################################################################################################################
+1  create gene tree
+./create_gene_tree.py -m CPS (or CYP117, or CYP114)
+
+2 Convert 
+./convert.py -i result_dic/ -o new_result/ -l XOC_0085
+
+3. reconstruction the file
+./reconstruction.py -i new_result/ -o reconstruction_global_CPS -t ../gene_tree/CPS/tree/out_tree.nwk -m global
+
+4.show tree
+./show_tree.py -g group.txt -i reconstruction_global_CPS/gibberellin -a accession_to_common.txt -l j -o Ryan_115_CPS
+
+#### get the gibberellin operon
+filter operon:
+./filter_operon_blast_results.py -i blast_parse/ -o optimized_gene_blocks/ -n 8 -e 1e-10 -g 500
+
+make event matrices:
+./make_event_distance_matrix.py -i gene_block_names_and_genes.txt -I optimized_gene_blocks/ -o gene_block_distance_matrices/ -n 8 -g 500
+
+# this will write out a result_dic file with additional information about percentage identity
+visualize:
+./operonVisual.py -n optimized_gene_blocks/ -m accession_to_common.csv -t tree/out_tree.nwk -e gene_block_distance_matrices/event_dict.p -d 500 -o visualization
+
+# convert, this take in the gibberellin file and check for the pseudo gene and set it to p
+./convert.py -i result_dic/ -o new_result/ -l XOC_0083
+
+reconstruction: 
+./reconstruction.py -m global -i new_result/ -o reconstruction_global -t ../new_tree/out_tree.nwk
+
+#### this serves to analyze of the real gene vs pseudo gene 
+1. create a gene specific query .fa from the original gene query fa
+
+2. match between XOC_... with the real gene name
+
+3. run blast_1_gene with the above 2 files (modify the code) # need to make this run in command line
+
+# this will also create an text file that gives all species has full of specific gene 
+4. ./show_tree.py -i reconstruction_global/gibberellin -a accession_to_common.txt -o Ryan -g ../group.txt 
+
+# this analyze will provide info about how close are the pseudo genes to the real gene
+5. run analyze.py
+
+
+
+
+
+###########################################################################################################################################################################################
+check for pseudo genes and gene fusion
+###########################################################################################################################################################################################
+1. blast the whole genome for each species with e value -38 (differentiate with CYP114), and retrieve the coordinate
+cmd: ./blast_1_gene.py -o CYP114
+or CYP115 , CPS,GGPS,SDR
+
+
+2. correct the fusion and pseudo by running the get_result
+./get_result_dic.py 
+
+
+###########################################################################################################################################################################################
+Include GGPS2 study 
+###########################################################################################################################################################################################
+debias the tree in the directory: /home/huyn/Ryan_Huy/alpha-proteobacteria/ancestral_reconstruction/debias
+1 . using the filter of full_CYP115_name, using 100 species
+./debias.py -i new_tree/out_tree.nwk -o new_tree/reduced_tree.nwk -s 64 -k full_CYP115_name
+
+2. reconstruction:
+../reconstruction.py -i ../new_result/ -o reconstruction_global -t new_tree/reduced_tree.nwk -m global
+
+3. showtree:
+../show_tree.py -g ../group.txt -i reconstruction_global/gibberellin -a ../accession_to_common.txt -l j -o Ryan_debias
+
+###########################################################################################################################################################################################
+Include HGT check
+###########################################################################################################################################################################################
+1.Provide a zscore and normalize for a given tree
+cmd1: ./distance.py -i new_tree/out_tree.nwk -s GGPS2.txt -o rpob
+cmd2:./distance.py -i operon_tree_distance/new_nj.nwk -s GGPS2.txt -o operon_distance
+
+2. Provide a comparison in term of rpoB vs operon distance
+cmd: ./compare_trees.py -t1 rpob.csv -t2 operon_distance.csv -o comparison

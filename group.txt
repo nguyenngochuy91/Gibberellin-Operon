@@ -1,0 +1,22 @@
+NZ_AZUW01000026:green
+NZ_KI912159:black
+NZ_KI632510:black
+NZ_KE386501:green
+NZ_ATTQ01000034:magenta
+NZ_LYTK01000004:black
+NZ_LYTO01000331:black
+Mesorhizobium:black
+NZ_AQUS01000178:green
+NZ_CAAF010000027:black
+NZ_AZUY01000046:black
+Rhizobium/Agrobacterium group:magenta
+NZ_KI421462:black
+NC_002678:black
+NZ_AZUX01000047:black
+NZ_LYTJ01000021:black
+NZ_KE386497:green
+NZ_KI421454:black
+NZ_ATTO01000069:magenta
+Sinorhizobium/Ensifer group:green
+CP003057:red
+Xanthomonadaceae:red
