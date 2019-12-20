@@ -130,7 +130,6 @@ def main():
     print ("Executing command: {} \n {}\n".format(cmd16," reconstruction using CYP114"))
     os.system(cmd16) 
     
-    # reconstructing using debias
     
     cmd14a = "./ancestral_reconstruction/reconstruction.py -i ancestral_reconstruction/new_result/ -o ancestral_reconstruction/reconstruction_global_rpoB_64 -t new_tree_64/bootstrap_rpoB_64.nwk -m global -p {}".format(includePseudo)
     print ("Executing command: {} \n {}\n".format(cmd14a," reconstruction using reduce rpoB"))
