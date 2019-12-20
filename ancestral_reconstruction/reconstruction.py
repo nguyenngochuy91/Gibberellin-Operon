@@ -129,9 +129,9 @@ def reconstruct_global(genomes,tree,genes):
     tree             =  initialize_block_number(tree,leaves,genes) # using the gene set to get relevant gene block for each leaf
     tree             =  minimize_split(tree,genes)
     check,tree,genes = find_dup(tree,leaves) 
-#    if check:
-#        print (check)
-#        tree  = minimize_dup(tree,genes)
+    if check:
+        print (check)
+        tree  = minimize_dup(tree,genes)
     return tree
 ###############################################################################
 ## Main function 

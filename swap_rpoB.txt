@@ -1,0 +1,2 @@
+('JRPN01000001.1', 'Bradyrhizobium_japonicum_Is-34', ''):('AXAY01000001.1', 'Bradyrhizobium_sp._WSM3983', 'k')
+('BA000040.2', 'Bradyrhizobium_diazoefficiens_USDA_110', ''):('AXAB01000001.1', 'Bradyrhizobium_sp._WSM2254', 'k')

@@ -9,14 +9,14 @@ from ete3 import *
 import argparse
 import os
 from findParent_global import *
-
+import csv
 def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--Operon","-i", help="Operon file name")
     parser.add_argument("--Accession","-a", help="accession_to_common")
     parser.add_argument("--Group","-g", help="Color Grouping")
     parser.add_argument("--Image","-o", help="Output Image")
-    parser.add_argument("--Locus","-l", help="gene mapping name (CYP114-h)")
+    parser.add_argument("--Locus","-l", help="gene mapping name (CYP115-a)",default = "a")
     args = parser.parse_args()
     return args
     
@@ -42,10 +42,15 @@ def accession_to_name(file):
         my_dic[line[0]] = line[1]
     return my_dic
 if __name__ == "__main__":
+    allGenes= "abcdefghijkp"
+    geneDic = {}
+    for i in range(len(allGenes)):
+        geneDic[allGenes[i]] = i
     start = time.time()
     args = get_arguments()
     locus = args.Locus
     name_dic = accession_to_name(args.Accession)
+#    print (args.Operon)         
     tree= Tree(args.Operon)
     mapping = args.Operon+'_mapping'
     infile = open(mapping,'r')
@@ -67,10 +72,28 @@ if __name__ == "__main__":
     # using the color dic to color group
     # color_dic = parse(args.Group)
     # fusion = open('potential_fusion.txt','w')
-    pseudo = open('pseudo.txt','w')
-    
+    pseudo  = open('pseudo.txt','w')
+    image   = args.Image.split("/")
+#    support = open("{}/bootstrap_{}.txt".format("/".join(image[:-1]),image[-1]),"w")
+    medium  = 0
+    high    = 0
+    low     = 0
+    extreme = 0
+    smallerDictionary = {}
     for node in tree.iter_descendants("postorder"):
         if not node.is_leaf():
+            if node.support!=None:
+                node.add_face(TextFace(node.support),0,"branch-bottom")
+#                support.write("{} has support of {}\n".format(node.name,node.support))
+                val = int(node.support)
+                if val>=70:
+                    high+=1
+                elif val>=40:
+                    medium+=1
+                elif val>=15:
+                    low+=1
+                else:
+                    extreme+=1
             genes = list(node.initial)
             col = 1
             for gene in genes:
@@ -105,19 +128,30 @@ if __name__ == "__main__":
                 node.add_features(node_color='mixed')
         else:
             
-                # print node.name, node.gene_block
-            name = node.name.split("_")
-            node.name =name_dic[node.name] 
+#            print node.name, node.gene_block
+            accesion     = node.name
+            info   = name_dic[node.name].split("_")
+            print (name_dic[accesion])
+            node.name    = " ".join(info[:2]) 
             if locus in node.gene_block:
                 outfile.write(node.name+'\n')
             color = 'red'
             node.add_features(node_color=color)
 #            R = RectFace(1,2,color="RoyalBlue", label="123")
 #            node.add_face(R)
-            if "reference" in node.name:
-                node.add_face(TextFace(node.name.replace("(reference)"," "),fgcolor = 'blue'), column =0, position ="aligned")
-            elif "Erwinia_tracheiphila_PSU-1" in node.name:
-                node.add_face(TextFace(node.name,fgcolor = 'gray'), column =0, position ="aligned")
+            smallerDictionary[accesion] = name_dic[accesion]
+            if "reference" in name_dic[accesion]:
+
+                node.add_face(TextFace(accesion,fgcolor = 'blue'), column =0, position ="aligned")
+                node.add_face(TextFace(node.name.replace("(reference)"," "),fgcolor = 'blue',fstyle ="italic"), column =1, position ="aligned")
+                node.add_face(TextFace(" "), column =2, position ="aligned")                
+                node.add_face(TextFace(info[-1],fgcolor = 'blue'), column =3, position ="aligned")
+            elif "Erwinia_tracheiphila_PSU-1" in name_dic[accesion]:
+
+                node.add_face(TextFace(accesion,fgcolor = 'gray'), column =0, position ="aligned")
+                node.add_face(TextFace(node.name,fgcolor = 'gray',fstyle ="italic"), column =1, position ="aligned")
+                node.add_face(TextFace(" "), column =2, position ="aligned")
+                node.add_face(TextFace(info[-1],fgcolor = 'gray'), column =3, position ="aligned")
             else:
                 # detect those that dont have gene g (maybe because of fusion):
                 if len(node.gene_block) ==0:
@@ -133,10 +167,13 @@ if __name__ == "__main__":
                         pseudo.write(node.name+'\n')
                     if 'k' in node.gene_block:
                         to_add += '?'
-                    node.add_face(TextFace(to_add+node.name), column =0, position ="aligned")
-                    
-            genes = list(node.gene_block)
-            col = 1
+                    node.add_face(TextFace(to_add+accesion), column =0, position ="aligned")
+                    node.add_face(TextFace(node.name,fstyle ="italic"), column =1, position ="aligned")
+                    node.add_face(TextFace("    ",), column =2, position ="aligned")
+                    node.add_face(TextFace(" ".join(info[2:])), column =3, position ="aligned")
+            node.add_face(TextFace("    ",), column =4, position ="aligned")
+            genes = node.gene_block
+            col = 5
             for gene in genes:
                 if gene !="|":
                     if gene!="p":
@@ -163,7 +200,10 @@ if __name__ == "__main__":
     outfile.close()
     # fusion.close()
     pseudo.close()
-
+#    support.write("High confidence (x>=70): {}\n".format(high))
+#    support.write("Medium confidence (40<=x<70): {}\n".format(medium))
+#    support.write("Low confidence (15<=x<40): {}\n".format(low))
+#    support.write("Extremely low confidence (x<15): {}\n".format(extreme))
     ### get the total cost for each event:
     # get the 2 children of the tree
     children= []
@@ -198,22 +238,44 @@ if __name__ == "__main__":
     cost.background.color = 'LightGreen'
     tree_style.title.add_face(cost, column=1)
 
-    dic= {'a': 'CYP115', 'b': 'CYP112', 'c': 'CYP114', 'd': 'Fd', 'e': 'SDR', 'f': 'CYP117', 'g': 'GGPS', 'h': 'CPS', 
-    'i': 'KS', 'j': 'IDI','k':'GGPS2','p':'CYP115-pseudo/fragment'}
-    mystring =''
+    dic= {'a': 'cyp115', 'b': 'cyp112', 'c': 'cyp114', 'd': 'fd', 'e': 'sdr', 'f': 'cyp117', 'g': 'ggps', 'h': 'cps', 
+    'i': 'ks', 'j': 'idi','k':'ggps2','p':'cyp115-pseudo/fragment'}
+    tree_style.title.add_face(TextFace("           "), column=2)
+    col = 3
     for item in sorted(dic):
-        mystring += item+':'+dic[item]+'         '
-    mystring = TextFace(mystring,fsize =10)
-    mystring.margin_top =5
-    mystring.margin_bottom = 5
-    mystring.margin_left = 20
-    mystring.margin_right = 20
-    mystring.background.color = 'LightBlue'
-    tree_style.title.add_face(mystring, column=2)
-    
+        key = item
+        gene   = dic[item]   
+        if item!="p":
+            myKey = TextFace(key,fsize =10)
+            myKey.background.color = gene_color_dic[item]
+        else:
+            myKey = TextFace(key,fgcolor="white")
+            myKey.background.color = "black"
+        myKey.margin_top =5
+        myKey.margin_bottom = 5
+        myKey.margin_left = 10
+        myKey.margin_right = 10
+        tree_style.title.add_face(myKey, column=col)
+        # gene name
+        col+=1
+        myGene = TextFace(": "+gene,fsize =10,fstyle ="italic")
+        myGene.margin_top =5
+        myGene.margin_bottom = 5
+        myGene.margin_left = 1
+        myGene.margin_right = 20
+        myGene.background.color = 'LightBlue'
+        tree_style.title.add_face(myGene, column=col)
+        col+=1    
+    with open("accession.csv",mode = "w") as accession_file:
+        fieldnames = ['accession','name']
+        writer = csv.DictWriter(accession_file, fieldnames=fieldnames)
+        writer.writeheader()
+        for key in smallerDictionary:
+            writer.writerow({'accession':key,'name':smallerDictionary[key]})
     # render the image
     tree.render(args.Image+'.png',dpi=1000,tree_style=tree_style)
     tree.render(args.Image+'.pdf',dpi=1000,tree_style=tree_style)
+    tree.render(args.Image+'.svg',dpi=1000,tree_style=tree_style)
     # tree.render(args.Image+'.pdf',dpi=1000,tree_style=tree_style)
 #    tree.show(tree_style=tree_style)
 

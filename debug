@@ -1,0 +1,32 @@
+
+0081 e sdr
+0082 d fd
+0083 c cyp114
+
+1.	 qseqid	 query (e.g., gene) sequence id
+ 2.	 sseqid	 subject (e.g., reference genome) sequence id
+ 3.	 pident	 percentage of identical matches
+ 4.	 length	 alignment length
+ 5.	 mismatch	 number of mismatches
+ 6.	 gapopen	 number of gap openings
+ 7.	 qstart	 start of alignment in query
+ 8.	 qend	 end of alignment in query
+ 9.	 sstart	 start of alignment in subject
+ 10.	 send	 end of alignment in subject
+ 11.	 evalue	 expect value
+ 12.	 bitscore	 bit score
+
+
+c-d-e
+
+LJYF01000001.1
+
+blast
+
+
+
+AXAT01000001.1
+
+CP000133.1
+
+CP005950.1

@@ -17,10 +17,13 @@ from Bio.SeqRecord import SeqRecord
 from Bio import Application
 from Bio.Application import _Option
 from Bio.Align.Applications import MuscleCommandline
+from Bio.Phylo.TreeConstruction import *
+from Bio.Phylo.Consensus import *
 from Bio import Phylo, AlignIO
 import subprocess
 import Configuration_Variables as conf_var
 import traceback
+
 from ete3 import Tree
 # Globals
 # The three output file names will be stored in the output directory that is supplied by the user
@@ -61,13 +64,13 @@ def check_options(parsed_args):
     if os.path.isdir(parsed_args.genbank_directory):
         genbank_directory = parsed_args.genbank_directory
     else:
-        print "The folder %s does not exist." % parsed_args.genbank_directory
+        print ("The folder %s does not exist." % parsed_args.genbank_directory)
         sys.exit()
     
     if parsed_args.filter == 'NONE' or os.path.exists(parsed_args.filter):
         filter_file = parsed_args.filter
     else:
-        print "The file %s does not exist." % parsed_args.filter
+        print ("The file %s does not exist." % parsed_args.filter)
         sys.exit()
     
     outfolder = parsed_args.outfolder
@@ -86,7 +89,7 @@ def check_options(parsed_args):
     if parsed_args.tree_file == 'NONE' or os.path.exists(parsed_args.tree_file):
         tree_file = parsed_args.tree_file
     else:
-        print "The file %s does not exist." % parsed_args.tree_file
+        print ("The file %s does not exist." % parsed_args.tree_file)
         sys.exit()
     
     quiet = parsed_args.quiet
@@ -108,11 +111,23 @@ def return_file_list(infolder, filter_file):
     if filter_file == '' or filter_file == 'NONE':
         return return_recursive_dir_files(infolder)   
     else:
-        filter_list = [i.strip() for i in open(filter_file)]
-
         #print "filter_list", filter_list
         #print "return",[i for i in return_recursive_dir_files(infolder) if os.path.basename(i).split('.')[0] in filter_list]
-        return [i for i in return_recursive_dir_files(infolder) if os.path.basename(i).split('.')[0] in filter_list]
+        
+        infile = [i.strip() for i in open(filter_file)]
+        d= {}
+        for item in infile:
+            item = item.split(",")
+            d[item[1]]=item[0]
+        
+        #print "filter_list", filter_list
+        #print "return",[i for i in return_recursive_dir_files(infolder) if os.path.basename(i).split('.')[0] in filter_list]
+        filter_list = ['./prokka/reference/reference.gbk']
+        for i in return_recursive_dir_files(infolder):
+            basename = os.path.basename(i)[:-4]
+            if basename in d:  
+                filter_list.append(i)
+        return filter_list
         
 
     
@@ -133,7 +148,7 @@ def make_common_to_accession_dict(infolder, filter_file):
 # TODO : expand the functionality of this function to make use of RNA genes and give the user the ability to list more than one marker that they are interested in
 def make_target_fasta(marker, infolder, filter_file, marker_fasta,has_blocks):
     org_paths = [i for i in return_file_list(infolder, filter_file) if i.split('/')[-1].split('.')[-1] == 'gbk']
-    # print org_paths
+    print (org_paths)
     #print "infolder", infolder
     #print "filter_file", filter_file
     #print "org_paths",org_paths
@@ -150,7 +165,7 @@ def make_target_fasta(marker, infolder, filter_file, marker_fasta,has_blocks):
             continue
         # Put code here to determine the format of the organisms' english name. currently i am using genus species, but strain can also be used
         organism = org.split('/')[-1].split('.gbk')[-2]
-        print "organism",organism
+        print ("organism",organism)
         #if(organism == "Natranaerobius_thermophilus") :
                 #print accession
         # Here we store the {organism:accession} information so that we can build a new list that is needed for the visualization pipeline
@@ -272,13 +287,15 @@ def make_newick_tree(marker_fasta, tree_outfile):
     temp_align = '.'.join(marker_fasta.split('.')[:-1]) + '.aln' 
     cm1 ="muscle -in "+marker_fasta+ " -out "+temp_align
     os.system(cm1)
+    
+
     #make the tree using clustal
     cm2 ="clustalw -infile="+temp_align+" -tree=1"
     # have to wait for few second for the aln file actually comes out lol
     os.system(cm2)
     temp_tree = '.'.join(marker_fasta.split('.')[:-1]) + '.ph' # that's what this file gets named by default, and i'm sick of looking for the cmd line arg to fix.
-    print temp_tree
-    print "modifying"
+#    print temp_tree
+#    print "modifying"
     #modify for negative branch
     modify_tree = '.'.join(marker_fasta.split('.')[:-1]) + '.new'
     cm3 = "sed -e 's,:-[0-9\.]\+,:0.0,g' "+temp_tree+" > "+modify_tree   
@@ -340,7 +357,7 @@ def main():
     ## outfile_for_asma = 'accession_to_common.txt'
     #phylo_order_new = 'phylo_order_new.txt'
     has_blocks =[]
-    infile = open('has_blocks.txt','r')
+    infile = open('has_block.txt','r')
     for line in infile.readlines():
         has_blocks.append(line.strip())
     infile.close()
@@ -365,7 +382,7 @@ def main():
     #marker_gene = "rpob"
     
     if not quiet:
-        print genbank_directory, outfolder, filter_file, marker_gene
+        print (genbank_directory, outfolder, filter_file, marker_gene)
     
     # set the paths for the three output files
     newick_tree_outfile = outfolder + conf_var.newick_tree
@@ -374,7 +391,6 @@ def main():
     
     # Execute code fork that builds a tree from scratch
     if tree_file == 'NONE':
-        #print "got here"
         # set the distmat file that is created in "make_target_fasta()" for i have no idea why
         marker_fasta = tmp_directory + "distmat_marker.fa"
         #print "got here 1"
@@ -402,7 +418,7 @@ def main():
     # shutil.rmtree(tmp_directory)
     
     if not quiet:
-        print time.time() - start
+        print (time.time() - start)
 # ./create_newick_tree.py -i ./gram_positive_test_organisms/  -f gram_positive_phylo_order.txt    
 if __name__ == '__main__':
     main()    

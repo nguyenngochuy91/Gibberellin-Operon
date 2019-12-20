@@ -209,7 +209,7 @@ def main():
     try:
         os.mkdir(outfolder)
     except:
-        print outfolder +" already created"
+        print (outfolder +" already created")
     upgmatree,njtree = make_newick_tree(dm)
     Phylo.write(upgmatree,outfolder+"/upg_tree.nwk","newick")
     cm3 = "sed -e 's,:-[0-9\.]\+,:0.0,g' "+outfolder+"/upg_tree.nwk"+" > "+outfolder+"/new_upg.nwk" 

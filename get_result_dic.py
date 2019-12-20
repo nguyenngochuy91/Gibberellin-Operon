@@ -18,7 +18,7 @@ def parser_code():
                 help="accesion number to map from accession number to name")  
     parser.add_argument("--output","-o", default="./result_dic/gibberellin",
                 help="where the result be stored")
-    parser.add_argument("--threshold","-t", default=350,
+    parser.add_argument("--threshold","-t", default=.6,
                 help="length threshold to determine whether a pseudo or not, default at 300")
     parser.add_argument("--gene_name","-g",default="gene_block_names_and_genes.txt",
                         help = "gene name of the operon")
@@ -70,6 +70,9 @@ def parse_GGPS2(gene_blast_ggps):
         handle = open(gene_blast_ggps+species,"r")
         for line in handle.readlines():
             line             = line.split('\t')
+            query            = line[0].split("|")
+            gene_length      = (int(query[5])-int(query[4]))/3
+            alignmentLength  = float(line[3])
             target           = line[1]
             percent_indentity = line[2]
             info             = target.split("|")
@@ -78,11 +81,12 @@ def parse_GGPS2(gene_blast_ggps):
             strandDirection  = info[6]
             # get the specie name
             target = info[0]
+            boolean          = (abs(alignmentLength/gene_length)>=(2/3.0))
             if target in dic:
-                if float(dic[target][0])<float(percent_indentity):
-                    dic[target] = [percent_indentity,startPos,endPos,strandDirection,False]
+                if float(dic[target][0])<float(percent_indentity) and boolean:
+                    dic[target] = [percent_indentity,startPos,endPos,strandDirection,boolean]
             else:
-                dic[target] = [percent_indentity,startPos,endPos,strandDirection,False]
+                dic[target] = [percent_indentity,startPos,endPos,strandDirection,boolean]
 
     return dic
 ###############################################################################
@@ -156,6 +160,7 @@ def get_real_gene(dic,real_gene,fake_gene):
 # output: dic
 def retrieve_info_filter(result, cyp114_dir, fd_dir,sdr_dir):
     dic={}
+#    print (result)
     for species in result:
         dic[species] = {"114":{},"fd":{},"sdr":{}}
 
@@ -167,7 +172,9 @@ def retrieve_info_filter(result, cyp114_dir, fd_dir,sdr_dir):
         
         infile_sdr = open(sdr_dir+species,'r')
         get_info_into_dic(infile_sdr,dic[species]["sdr"]) 
-
+#        if species== "Rhizobium_etli_CFN_42":
+#            print (dic[species])
+#    print (dic)
     return dic
     
 # function that given a handle, read out info into a dictionary
@@ -180,39 +187,59 @@ def get_info_into_dic(handle,dic):
         target           = line[1]
         percent_indentiy = line[2]
         alignment_length = line[3]
-        target_start     = line[8]
-        target_stop      = line[9]
-        
+        target_start     = int(target.split('|')[4])
+        target_stop      = int(target.split('|')[5])
+        target_strand    = int(target.split('|')[6])
+        start_coding     = int(line[8])
+        stop_coding      = int(line[9])
         # get the target name
-        target   = target.split('|')[2]
-        dic[target] = [percent_indentiy,alignment_length,target_start,target_stop]
+        target_name   = target.split('|')[2]
+        dic[target_name] = [percent_indentiy,alignment_length,target_start,target_stop,target_strand,start_coding,stop_coding]
         
 # given info from fd_info list, and either sdr or cyp114 info, determine wheter
 # the blast hits are overlapped, if not then just return as it is
 # if not, modify the start and stop point
-# input: (fd_info, query_info)
+# input: (fd_info, query_info,is_sdr) . Normal strand: cyp114-fd-sdr (83-82-81)
 # output: (fd_info, query_info)
-def check_overlap(fd_info,query_info):
-    fd_start   = int(fd_info[2])
-    fd_info[2] = fd_start
-    fd_stop    = int(fd_info[3])
-    fd_info[3] = fd_stop
-    query_start   = int(query_info[2])
-    query_info[2] = query_start
-    query_stop    = int(query_info[3])
-    query_info[3] = query_stop
-    if query_start < fd_start: # means that fd is fused into 3'end of the query
-        # check if overlap
-        if query_stop >= fd_start: # have to change
-            middle = (query_stop+fd_start)//2
-            query_info[3] = middle
-            fd_info[2]    = middle - 1
-    else: # means that fd is fused into the 5' end of the 5' end of the query
-        if fd_stop >= query_start:
-            middle = (fd_stop+query_start)//2
-            query_info[2] = middle
-            fd_info[3]    = middle - 1
-        
+def check_overlap(species,fd_info,query_info,is_sdr):
+    # since they are basically fused, we check the strand first
+    strand = fd_info[4]
+    # they are fused, so they are from the same gene ,check the start and end of this gene
+    gene_start = fd_info[2]
+    gene_stop  = fd_info[3]
+    # find the start coding,stop coding of fd and the query
+    fd_start   = fd_info[5]
+    fd_stop    = fd_info[6]
+    query_start= query_info[5]
+    query_stop = query_info[6]
+    if species=="Rhizobium_etli_CIAT_652":
+        print (is_sdr,strand,fd_info,query_info)
+    if fd_start<=query_start:
+        average = (fd_stop+query_start)//2
+        fd_stop = average
+        query_start = average
+        fd_length   = (fd_stop-fd_start+1)*3
+        query_length = (query_stop-query_start)*3
+        fd_info[2]   = gene_start
+        fd_info[3]   = gene_start+fd_length
+        query_info[2]   = gene_stop-query_length
+        query_info[3]   = gene_stop
+#        if (not is_sdr and strand==-1) or (is_sdr and strand ==-1):
+#            fd_info,query_info = query_info,fd_info
+    elif query_start<fd_start:
+        average = (fd_start+query_stop)//2
+        fd_start = average
+        query_stop = average    
+        fd_length   = (fd_stop-fd_start+1)*3
+        query_length = (query_stop-query_start)*3    
+        fd_info[2]   = gene_stop-fd_length
+        fd_info[3]   = gene_stop
+        query_info[2]   = gene_start
+        query_info[3]   = gene_start+query_length
+    if (not is_sdr and strand==-1) or (is_sdr and strand ==-1):
+        fd_info,query_info = query_info,fd_info      
+    if species=="Rhizobium_etli_CIAT_652":
+        print (is_sdr,strand,fd_info,query_info)
     return fd_info,query_info
 
 # from the dic, we will find the fusion if it happens
@@ -225,26 +252,34 @@ def modify_prelim_dic(dic):
         if len(fd_list)!=0:
             dic_114 = {}
             sdr_dic = {}
-            for locus_name in fd_list: # we assume that we guarantee to find 1 from either sdr or cyp114
-                found_sdr = False
-                found_114 = False               
-                fd_locus_info  = dic[species]["fd"][locus_name]
-                if locus_name in dic[species]['sdr']:
-                    sdr_info  = dic[species]['sdr'][locus_name]
-                    found_sdr = True
-                    # check if overlap? if not life is happy
-                    fd_locus_info,sdr_info = check_overlap(fd_locus_info,sdr_info)
-                    # update the dic_114
-                    sdr_dic[locus_name]   = sdr_info
+            locus_name = fd_list[0]
 
-                if locus_name in dic[species]['114']:
-                    info_114  = dic[species]['114'][locus_name]
-                    found_114 = True
-                    # check if overlap? if not life is happy
-                    fd_locus_info,info_114 = check_overlap(fd_locus_info,info_114)
-                    # update the sdr_dic
-                    dic_114[locus_name] = info_114
-            
+            found_sdr = False
+            found_114 = False               
+            fd_locus_info  = dic[species]["fd"][locus_name]
+            if locus_name in dic[species]['sdr']:
+                sdr_info  = dic[species]['sdr'][locus_name]
+
+                found_sdr = True
+                # check if overlap? if not life is happy
+                fd_locus_info,sdr_info = check_overlap(species,fd_locus_info,sdr_info,True)
+                # update the dic_114
+                sdr_dic[locus_name]   = sdr_info
+                dic[species]['fd'][locus_name] = fd_locus_info
+#                if species =="Mesorhizobium_sp._L103C105A0":
+#                    print (locus_name,sdr_info,"sdr",sdr_info)
+            elif locus_name in dic[species]['114']:
+                info_114  = dic[species]['114'][locus_name]
+
+                found_114 = True
+
+                # check if overlap? if not life is happy
+                fd_locus_info,info_114 = check_overlap(species,fd_locus_info,info_114,False)
+
+                     
+                # update the sdr_dic
+                dic_114[locus_name] = info_114
+                dic[species]['fd'][locus_name] = fd_locus_info
             if found_114:
                 dic[species]['114'] = dic_114
             else:
@@ -256,7 +291,7 @@ def modify_prelim_dic(dic):
                 del dic[species]['sdr']
         else:
             del dic[species]
-            
+#    print (dic["Mesorhizobium_sp._L103C105A0"])
     return dic
 
 def parse(gene_name):
@@ -277,16 +312,21 @@ def format_operon(operon,threshold):
     for line in [i.strip() for i in infile.readlines()]:
         hlog = Homolog.from_blast(line)
         accession = hlog.accession()
-        start = hlog.start()
-        end = hlog.stop()
+        query_start = hlog.query_start()
+        query_end = hlog.query_stop()
         strand = hlog.strand()
+        length  = (query_end - query_start)/3.0
         # gene_name = hlog.blast_annotation()
+        start               = hlog.start()
+        end                = hlog.stop()
         locus               = hlog.query_locus()
         identity            = hlog.percent_ident()
-        aligned_length      = hlog.aligned_length()
+        aligned_length      = float(hlog.aligned_length())
         locus_name          = hlog.locus()
-        boolean = aligned_length>=threshold
-        
+        boolean = abs(aligned_length/length)>=threshold
+
+#        if locus =='XOC_0076':
+#            print (length,aligned_length,threshold,boolean)
         # print "identity",identity
         if accession in result.keys():
             result[accession].append((locus, start, end, strand,identity,boolean,locus_name))
@@ -313,7 +353,7 @@ if __name__ == "__main__":
     try:
         os.mkdir("result_dic")
     except:
-        print "result_dic already created"
+        print ("result_dic already created")
     operon = args.input
     output = args.output
     gene_name = args.gene_name
@@ -347,9 +387,10 @@ if __name__ == "__main__":
         string += key+","+gene_dic[key]+'\t'
     string+='\n'
     for species in operon_dic:
+#        if species == "AXAT01000001.1":
+#            print (operon_dic["AXAT01000001.1"])
         string +=species+':'
         for l in operon_dic[species]:
-
             geneName=l[0]
             startPos=int(l[1])
             endPos=int(l[2])
@@ -378,9 +419,9 @@ if __name__ == "__main__":
                             for item in info_fd:
                                 # write cyp_114 new info
                                 if item == locus:
-                                    string += to_string(l[0],startPos+3*(info_114[locus][2]-1),startPos+3*(info_114[locus][3])-1,strandDirection,identity,boolean)
+                                    string += to_string(l[0],info_114[locus][2],info_114[locus][3],strandDirection,identity,boolean)
                                     # write fd new info                        
-                                    string += to_string('XOC_0082',startPos+3*(info_fd[locus][2]-1),startPos+3*(info_fd[locus][3])-1,strandDirection,identity,boolean)
+                                    string += to_string('XOC_0082',info_fd[locus][2],info_fd[locus][3],strandDirection,identity,boolean)
                 elif l[0] == 'XOC_0085':  # checking fusion for fd into cyp114
                     if locus in result_114[name]:# 
                         # if species has no fusion or fusion does not involve cyp114
@@ -392,10 +433,15 @@ if __name__ == "__main__":
                             fd_into_114.append(name)
                             for item in info_fd:
                                 if item == locus:
-                                    # write cyp_114 new info                       
-                                    string += to_string('XOC_0083',startPos+3*(info_114[locus][2]-1),startPos+3*(info_114[locus][3])-1,strandDirection,identity,boolean)
+                    
+                                    string += to_string('XOC_0083',info_114[locus][2],info_114[locus][3],strandDirection,identity,boolean)
                                     # write fd new info                        
-                                    string += to_string('XOC_0082',startPos+3*(info_fd[locus][2]-1),startPos+3*(info_fd[locus][3])-1,strandDirection,identity,boolean)
+                                    string += to_string('XOC_0082',info_fd[locus][2],info_fd[locus][3],strandDirection,identity,boolean)
+#                                    else:
+#                                        # write cyp_114 new info                       
+#                                        string += to_string('XOC_0082',info_114[locus][2],info_114[locus][3],strandDirection,identity,boolean)
+#                                        # write fd new info                        
+#                                        string += to_string('XOC_0083',info_fd[locus][2],info_fd[locus][3],strandDirection,identity,boolean)
                     else:
                         string += to_string(l[0],startPos,endPos,strandDirection,identity,boolean)
                 elif l[0] == 'XOC_0081': # checking fusion for fd into Sdr
@@ -408,20 +454,27 @@ if __name__ == "__main__":
                         for item in info_fd:
                             if item == locus:
                                 # write cyp_114 new info
-                                string += to_string('XOC_0081',startPos+3*(info_sdr[locus][2]-1),startPos+3*(info_sdr[locus][3])-1,strandDirection,identity,boolean)
+                                string += to_string('XOC_0081',info_sdr[locus][2],info_sdr[locus][3],strandDirection,identity,boolean)
                                 # write fd new info                        
-                                string += to_string('XOC_0082',startPos+3*(info_fd[locus][2]-1),startPos+3*(info_fd[locus][3])-1,strandDirection,identity,boolean)
+                                string += to_string('XOC_0082',info_fd[locus][2],info_fd[locus][3],strandDirection,identity,boolean)
+#                                else:
+#                                    # write cyp_114 new info
+#                                    string += to_string('XOC_0082',info_sdr[locus][2],info_sdr[locus][3],strandDirection,identity,boolean)
+#                                    # write fd new info                        
+#                                    string += to_string('XOC_0081',info_fd[locus][2],info_fd[locus][3],strandDirection,identity,boolean)                
                 else:
                     string += to_string(l[0],startPos,endPos,strandDirection,identity,boolean)
         
         # check if this specie has the XOC_0086 which is GGPS2
         if species in GGPS2_dic:
             percent_identity = float(GGPS2_dic[species][0])
-            startPos = GGPS2_dic[species][1]
-            endPos   =GGPS2_dic[species][2]
-            strandDirection = GGPS2_dic[species][3]
+            startPos         = GGPS2_dic[species][1]
+            endPos           = GGPS2_dic[species][2]
+            strandDirection  = GGPS2_dic[species][3]
+            boolean          = GGPS2_dic[species][4]
             if percent_identity >= 70:
-                string +=to_string('XOC_0086',startPos,endPos,strandDirection,percent_identity,True)
+                string +=to_string('XOC_0086',startPos,endPos,strandDirection,percent_identity,boolean)
+        
         string +='\n'
     fileout.write(string)
     fileout.close()

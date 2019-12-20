@@ -19,7 +19,8 @@ def parser_code():
                 
     parser.add_argument("-s", "--tree_size", help="Size of the tree for output, for example reduced from 149 leaves to 100 leaves")
  
-    parser.add_argument("-k", "--keeper", help="Force to include the following speciese")                                       
+    parser.add_argument("-k", "--keeper", help="Force to include the following speciese")     
+    parser.add_argument("-a", "--accession", help="Accession file accession_to_common.txt")                                            
     return parser.parse_args()
     
 def parse_pda(handle):
@@ -32,7 +33,9 @@ if __name__ == "__main__":
     args  = parser_code()
     input_tree = args.input_tree
     output_tree = args.output_tree
+    accession_file = args.accession
     difference = '/'.join(input_tree.split('/')[:-1])+"/not_included.txt"
+    filter_file = '/'.join(input_tree.split('/')[:-1])+"/filter.txt"
     t = Tree(input_tree, format = 1)
     leaves_full = t.get_leaf_names()
     size = int(args.tree_size)
@@ -50,3 +53,13 @@ if __name__ == "__main__":
     for item in not_included:
         outfile.write(item+"\n")
     outfile.close()
+    outfile = open(filter_file,"w")
+    infile = open(accession_file,"r")
+    for line in infile.readlines():
+        for leaf in leaves_partial:
+            if leaf in line:
+                outfile.write(line)
+                break
+    outfile.close()
+    infile.close()
+        
