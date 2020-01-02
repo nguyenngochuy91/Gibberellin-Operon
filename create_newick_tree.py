@@ -132,12 +132,16 @@ def return_file_list(infolder, filter_file):
 
     
 def make_common_to_accession_dict(infolder, filter_file):
-    org_paths = [i for i in return_file_list(infolder, filter_file) if i.split('/')[-1].split('.')[-1] == 'gbk']
+    org_paths = [i for i in return_file_list(infolder, filter_file) if i.split('/')[-1].split('.')[-1] == 'gbf']
+    reference = [i for i in return_file_list(infolder, filter_file) if i.split('/')[-1].split('.')[-1] == 'gbk']
+    print ("*******************")
+    print (reference)
+    org_paths.extend([i for i in return_file_list(infolder, filter_file) if i.split('/')[-1].split('.')[-1] == 'gbk'])
     common_to_accession_dict = {}
     for org in org_paths:
         seq_record = SeqIO.parse(open(org), "genbank").next()
         accession = seq_record.id
-        organism = org.split('/')[-1].split('.gbk')[-1]
+        organism = org.split('/')[-1].split('.gb')[-2]
         common_to_accession_dict.update({organism:accession})
     return common_to_accession_dict
         
@@ -147,7 +151,8 @@ def make_common_to_accession_dict(infolder, filter_file):
 # to take RNA genes like 16s as well.
 # TODO : expand the functionality of this function to make use of RNA genes and give the user the ability to list more than one marker that they are interested in
 def make_target_fasta(marker, infolder, filter_file, marker_fasta,has_blocks):
-    org_paths = [i for i in return_file_list(infolder, filter_file) if i.split('/')[-1].split('.')[-1] == 'gbk']
+    org_paths = [i for i in return_file_list(infolder, filter_file) if i.split('/')[-1].split('.')[-1] == 'gbf']
+    org_paths.extend([i for i in return_file_list(infolder, filter_file) if i.split('/')[-1].split('.')[-1] == 'gbk'])
     print (org_paths)
     #print "infolder", infolder
     #print "filter_file", filter_file
@@ -164,7 +169,7 @@ def make_target_fasta(marker, infolder, filter_file, marker_fasta,has_blocks):
         if accession not in has_blocks:
             continue
         # Put code here to determine the format of the organisms' english name. currently i am using genus species, but strain can also be used
-        organism = org.split('/')[-1].split('.gbk')[-2]
+        organism = org.split('/')[-1].split('.gb')[-2]
         print ("organism",organism)
         #if(organism == "Natranaerobius_thermophilus") :
                 #print accession

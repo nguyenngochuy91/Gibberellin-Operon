@@ -183,7 +183,7 @@ def main():
         result = [i for i in return_recursive_dir_files(genbank_directory) if i.split('/')[-1].split('.')[-1] == 'ffc']
         for file in result:
             name = file.split('/')[-1]
-#            parse_written(name,marker_gene+'.fa',output+marker_gene,has_blocks)
+            parse_written(name,marker_gene+'.fa',output+marker_gene,has_blocks)
         # for each result of blast for a species, get the locus of the best hit for gene
         # create a dic that map a genome to its best hit of gene
         operon_dic[marker_gene] = best_gene(output+marker_gene+'/')

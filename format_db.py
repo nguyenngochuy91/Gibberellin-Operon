@@ -99,7 +99,7 @@ def returnRecursiveDirFiles(root_dir):
     for path, dir_name, flist in os.walk(root_dir):
         for f in flist:
             fname = os.path.join(path, f)
-            if os.path.isfile(fname) and '.gbk' in fname:
+            if os.path.isfile(fname) and '.gbf' in fname:
                 result.append(fname)
     return result
     

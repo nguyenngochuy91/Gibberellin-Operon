@@ -149,6 +149,7 @@ if __name__ == "__main__":
     sessionID = uuid.uuid1()
     condition = chk_output_directory_path(args.OutputDirectory,sessionID)
     treeFile=args.TreeFile
+#    print ("Treefile:{}".format(treeFile))
     method =args.Method
     includePseudo = args.pseudo
     if condition:

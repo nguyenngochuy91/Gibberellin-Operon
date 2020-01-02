@@ -4,6 +4,7 @@
 1. Given the list of species name, find all the assembly file of such species using the assembly_summary and download the assembly file from ncbi
 ./get_fasta.py
 
+* prokka now only return gbf file instead of gbk, be wary, change affect format_db.py, create_newick_tree.py
 1. combine contigs given threshold 5000
 cmd: ./combine_contigs.py -t 5000
 
@@ -16,6 +17,7 @@ cmd: ./prokka.py
 
 
 3. Build a db of the cds for each species to blast it 
+
 cmd: ./format_db.py
 
 4. blast file in ./db/ vs gene_block_query.fa (change line 103 ->    out_file = "%s%s.txt" % (blast_result_folder, db.split('/')[-1].split('.ffc')[0]) )
