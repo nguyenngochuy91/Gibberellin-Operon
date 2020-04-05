@@ -10,9 +10,7 @@ import time
 def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--contigs","-c",help = "contigs length (default as 10000)",default = 10000)
-    parser.add_argument("--model","-m",help = "word model file")
     parser.add_argument("--Distance","-d",help="Distance to consider as a split (default at 500)",default = 500)
-    parser.add_argument("--wlcut","-l", help = "the maximum number of words in any superword (a positive integer)")
     parser.add_argument("--pseudo","-p", help = "include pseudo of gene CYP115 in reconstruction or not(y,n)",default = "n")
     args = parser.parse_args()
     return args
